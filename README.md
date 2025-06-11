@@ -106,4 +106,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## 🙋‍♂️ Author
 
 **Theodoros**  
-Cybersecurity Intern | Passionate about Red/Blue Team Tools
+Junior Penetration Tester - Intern
