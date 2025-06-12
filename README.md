@@ -17,7 +17,8 @@ Originally inspired by limitations in *ChromeCookieView* by NirSoft (which no lo
   - Authentication cookies  
   - JWTs  
   - User identifiers  
-  - Consent flags  
+  - Consent flags
+- 🔎 Search cookie categories
 - 📁 Works offline (from a memory dump or Chrome profile backup)
 - 🚨 Avoids security detection or browser alerts
 - 📊 Displays clean, categorized output with emoji stats
