@@ -9,6 +9,7 @@ from Crypto.Cipher import AES
 import sys
 from collections import defaultdict
 import time
+import subprocess
 
 # Paths - MODIFY IF USING DIFFERENT PROFILE
 USER_PROFILE = os.environ['USERPROFILE']
@@ -18,52 +19,51 @@ COOKIES_PATH = os.path.join(USER_PROFILE,
                           r'AppData\Local\Google\Chrome\User Data\Default\Network\Cookies')
 
 def print_banner():
-    """Display a friendly banner"""
     print("=" * 60)
-    print("    🍪 Chrome Cookie Decryption Tool")
+    print("         Chrome Cookie Decryption Tool")
     print("=" * 60)
     print("This tool will safely decrypt and display your Chrome cookies.")
     print("All processing is done locally on your machine.\n")
 
 def check_prerequisites():
-    """Check if required files exist and Chrome is closed"""
-    print("🔍 Checking prerequisites...")
-    
+    print("[!] Checking prerequisites...")
+
+    # Check for Chrome processes and kill them
+    tasks = subprocess.check_output("tasklist", shell=True).decode()
+    if "chrome.exe" in tasks:
+        print("[!] Chrome is running. Attempting to terminate it...")
+        subprocess.call("taskkill /F /IM chrome.exe", shell=True)
+        time.sleep(2)
+        print("[+] Chrome terminated")
+
     if not os.path.exists(LOCAL_STATE_PATH):
-        print("❌ Chrome Local State file not found!")
+        print("[-] Chrome Local State file not found!")
         print(f"   Expected location: {LOCAL_STATE_PATH}")
         return False
-    
+
     if not os.path.exists(COOKIES_PATH):
-        print("❌ Chrome Cookies database not found!")
+        print("[-] Chrome Cookies database not found!")
         print(f"   Expected location: {COOKIES_PATH}")
         return False
-    
-    print("✅ Chrome files found")
-    print("⚠️  Please ensure Chrome is completely closed before continuing")
+
+    print("[+] Chrome files found")
     return True
 
 def get_master_key():
-    """For Chrome 104 - Gets key from Local State without app_bound_encrypted_key"""
-    print("🔑 Extracting master encryption key...")
+    print("[!] Extracting master encryption key...")
     try:
         with open(LOCAL_STATE_PATH, "r", encoding="utf-8") as f:
             local_state = json.loads(f.read())
-        
         encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
-        
         if encrypted_key.startswith(b'DPAPI'):
             encrypted_key = encrypted_key[5:]
-        
         key = win32crypt.CryptUnprotectData(encrypted_key, None, None, None, 0)[1]
-        print("✅ Master key extracted successfully")
+        print("[+] Master key extracted successfully")
         return key
-    
     except Exception as e:
         raise RuntimeError(f"Failed to extract encryption key: {str(e)}")
 
 def is_json(value):
-    """More accurate JSON detection"""
     if not isinstance(value, str):
         return False
     value = value.strip()
@@ -76,10 +76,6 @@ def is_json(value):
     return False
 
 def unwrap_json_cookie(raw_value):
-    """
-    If the decrypted value is JSON and contains a 'value' field, return it.
-    Otherwise, return the original.
-    """
     if is_json(raw_value):
         try:
             parsed = json.loads(raw_value)
@@ -105,7 +101,6 @@ def categorize_cookie(name):
         return 'OTHER'
 
 def decode_cookie_value(value):
-    """Handle URL decoding and UTF-8 conversion"""
     try:
         decoded = value.decode('utf-8')
         if '%' in decoded:
@@ -115,23 +110,14 @@ def decode_cookie_value(value):
         return value.decode('utf-8', errors='replace')
 
 def decrypt_value(encrypted_value, key):
-    """Improved decryption with better empty value handling"""
     if not encrypted_value:
         return "[EMPTY]"
-    
-    # Handle non-encrypted values (like '12345' etc)
     try:
         if not encrypted_value.startswith(b'v10'):
-            try:
-                return decode_cookie_value(encrypted_value)
-            except:
-                return "[NON-ENCRYPTED]"
-        
-        # Proper decryption for v10 encrypted values
+            return decode_cookie_value(encrypted_value)
         nonce = encrypted_value[3:15]
         ciphertext = encrypted_value[15:-16]
         tag = encrypted_value[-16:]
-
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
         decrypted = cipher.decrypt_and_verify(ciphertext, tag)
         decoded = decode_cookie_value(decrypted)
@@ -140,128 +126,109 @@ def decrypt_value(encrypted_value, key):
         return f"[DECRYPT FAILED: {str(e)}]"
 
 def clean_output(host, name, value):
-    """Improved output formatting"""
     host_clean = host.decode().strip()
     name_clean = name.decode().strip()
-    category = categorize_cookie(name_clean)
-    
-    # Skip printing empty values
     if value in ("[EMPTY]", "[NON-ENCRYPTED]"):
-        return f"🌐 {host_clean} | {name_clean} = {value}"
-    
-    # Handle JSON display
+        return f"=> {host_clean} | {name_clean} = {value}\n"
     if is_json(value):
         try:
             json_data = json.loads(value)
-            json_str = json.dumps(json_data, indent=2)[:200]  # Limit JSON preview
-            return f"🌐 {host_clean} | {name_clean} = (JSON)\n{json_str}..."
+            json_str = json.dumps(json_data, indent=2)
+            return f"=> {host_clean} | {name_clean} = (JSON)\n{json_str}\n"
         except:
             pass
-    
-    # Regular value display
-    value_str = str(value)
-    if len(value_str) > 100:
-        return f"🌐 {host_clean} | {name_clean} = {value_str[:100]}... ({len(value_str)} chars)"
-    
-    return f"🌐 {host_clean} | {name_clean} = {value_str}"
+    return f"=> {host_clean} | {name_clean} = {value}\n"
 
 def decrypt_cookies(master_key):
-    """Decrypts Chrome cookies with improved handling and statistics"""
-    print("🔓 Starting cookie decryption process...")
+    print("[!] Starting cookie decryption process...")
     conn = None
     stats = defaultdict(int)
     processed_count = 0
-    
+    all_cookies = defaultdict(list)
+
     try:
         conn = sqlite3.connect(COOKIES_PATH)
         conn.text_factory = bytes
         cursor = conn.cursor()
-        
-        # Get total count for progress indication
         cursor.execute("SELECT COUNT(*) FROM cookies")
         total_cookies = cursor.fetchone()[0]
-        
-        print(f"📊 Found {total_cookies} cookies to process")
+
+        print(f"[!] Found {total_cookies} cookies to process")
         print("\n" + "=" * 60)
-        print("🍪 DECRYPTED COOKIES:")
+        print("     DECRYPTED COOKIES:")
         print("=" * 60)
-        
+
         cursor.execute("SELECT host_key, name, encrypted_value FROM cookies")
-        
+
         for host, name, encrypted_value in cursor.fetchall():
             processed_count += 1
             decrypted = decrypt_value(encrypted_value, master_key)
             category = categorize_cookie(name.decode())
             stats[category] += 1
-            
-            print(clean_output(host, name, decrypted))
-            
-            # Show progress for large datasets
+            formatted = clean_output(host, name, decrypted)
+            all_cookies[category].append(formatted)
+            print(formatted)
+
             if processed_count % 50 == 0:
-                print(f"\n⏳ Progress: {processed_count}/{total_cookies} cookies processed...\n")
-        
-        # Print summary
+                print(f"\n[*] Progress: {processed_count}/{total_cookies} cookies processed...\n")
+
         print("\n" + "=" * 60)
-        print("📈 SUMMARY STATISTICS:")
+        print("[+] SUMMARY STATISTICS:")
         print("=" * 60)
         for cat, count in sorted(stats.items()):
-            emoji = get_category_emoji(cat)
-            print(f"  {emoji} {cat}: {count}")
-        print(f"  🏆 TOTAL PROCESSED: {sum(stats.values())}")
+            print(f"  {cat}: {count}")
+        print(f"  [+] TOTAL PROCESSED: {sum(stats.values())}")
         print("=" * 60)
-    
+
+        while True:
+            selection = input("\n[?] Enter category to view (AUTH, SESSION, TOKEN, IDENTIFIER, CONSENT, OTHER, ALL, EXIT): ").strip().upper()
+            if selection == "EXIT":
+                break
+            print("\n" + "=" * 60)
+            print(f"  DISPLAYING: {selection} cookies")
+            print("=" * 60)
+
+            if selection == "ALL":
+                for cat in all_cookies:
+                    for line in all_cookies[cat]:
+                        print(line)
+            elif selection in all_cookies:
+                for line in all_cookies[selection]:
+                    print(line)
+            else:
+                print("[!] Invalid category selection. Try again or type EXIT to quit.")
+
     except Exception as e:
-        print(f"❌ Database error: {str(e)}")
-        print("💡 Make sure Chrome is completely closed and try again")
+        print(f"[-] Database error: {str(e)}")
+        print("[!] Make sure Chrome is completely closed and try again")
     finally:
         if conn:
             conn.close()
 
-def get_category_emoji(category):
-    """Return appropriate emoji for each category"""
-    emoji_map = {
-        'AUTH': '🔐',
-        'SESSION': '⏱️',
-        'TOKEN': '🎟️',
-        'IDENTIFIER': '🆔',
-        'CONSENT': '✅',
-        'OTHER': '📄'
-    }
-    return emoji_map.get(category, '📄')
-
 def main():
-    """Main execution function with improved user experience"""
     try:
         print_banner()
-        
         if not check_prerequisites():
             print("\n❌ Prerequisites check failed. Please resolve the issues above.")
             input("\nPress Enter to exit...")
             return
-        
-        print("\n⏳ Starting decryption process...")
-        time.sleep(1)  # Brief pause for better UX
-        
+        print("\n[+] Starting decryption process...")
+        time.sleep(1)
         master_key = get_master_key()
-        print(f"🔑 Master Key Length: {len(master_key)} bytes")
-        
-        print("\n" + "⚠️ " * 20)
+        print(f"[+] Master Key Length: {len(master_key)} bytes")
+        print("\n" + "=" * 65)
         print("  IMPORTANT: The following data contains sensitive information")
         print("  Please handle with care and do not share publicly")
-        print("⚠️ " * 20)
-        
+        print("=" * 65)
         input("\nPress Enter to continue with cookie decryption...")
-        
         decrypt_cookies(master_key)
-        
-        print("\n✅ Cookie decryption completed successfully!")
-        print("💡 Tip: You can scroll up to review all the decrypted cookies")
-    
+        print("\n[!] Cookie decryption completed successfully!")
+        print("[+] Tip: You can scroll up to review all the decrypted cookies")
     except KeyboardInterrupt:
-        print("\n\n⏹️  Process interrupted by user")
+        print("\n\n[-]  Process interrupted by user")
     except Exception as e:
-        print(f"\n❌ Critical Error: {str(e)}")
-        print("💡 Common solutions:")
+        print(f"\n[-] Critical Error: {str(e)}")
+        print("[*] Common solutions:")
         print("   • Make sure Chrome is completely closed")
         print("   • Run as administrator if needed")
         print("   • Check if antivirus is blocking access")
