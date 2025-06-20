@@ -89,6 +89,10 @@ pip install -r requirements.txt
 
 ---
 
+## 🔨 Latest Working Chrome Version
+
+< 129.0.666.8.59 (Official Build) (64-bit)
+
 ## ⚠️ Disclaimer
 
 This tool is intended **strictly for ethical, educational, or forensic use only**.  
