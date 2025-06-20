@@ -108,3 +108,28 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 **Theodoros**  
 Junior Penetration Tester - Intern
+
+## 🖼️ Screenshots
+
+### 🔐 Master Key Extraction and Decryption Prompt
+![Start Decryption](screenshots/start_decryption_prompt.png)
+
+---
+
+### 📋 Decrypted Cookies Output (Part 1)
+![Decrypted Output 1](screenshots/decrypted_output_1.png)
+
+---
+
+### 📋 Decrypted Cookies Output (Part 2)
+![Decrypted Output 2](screenshots/decrypted_output_2.png)
+
+---
+
+### 📊 Summary Statistics by Category
+![Summary Stats](screenshots/summary_stats.png)
+
+---
+
+### 🔍 Viewing Cookies by Category (e.g., SESSION, TOKEN, CONSENT)
+![Categorized Output](screenshots/categorized_output.png)
