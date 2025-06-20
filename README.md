@@ -126,7 +126,7 @@ Junior Penetration Tester - Intern
 ---
 
 ### 📋 Decrypted Cookies Output (Part 2)
-![Decrypted Output 2](screenshots/decrypted_output_2.png)
+![Decrypted Output 2](screenshots/categorized_output.png)
 
 ---
 
@@ -136,4 +136,4 @@ Junior Penetration Tester - Intern
 ---
 
 ### 🔍 Viewing Cookies by Category (e.g., SESSION, TOKEN, CONSENT)
-![Categorized Output](screenshots/categorized_output.png)
+![Categorized Output](screenshots/decrypted_output_2.png)
