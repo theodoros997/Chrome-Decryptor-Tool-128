@@ -1,53 +1,65 @@
-# Chrome-Decryptor-Tool-128
+# 🛡️ Chrome Decryptor (v2 - Offline Mode)
 
-# 🛡️ Chrome Decryptor
+**Chrome Decryptor v2** is a powerful offline tool for decrypting Google Chrome cookies. This enhanced version allows direct decryption **without relying on a running Chrome instance** by accepting the Chrome master key in multiple ways.
 
-**Chrome Decryptor** is a forensic and red-team utility developed during a cybersecurity internship. It decrypts cookies stored in modern versions of Google Chrome (v80+), including those encrypted using the AES-GCM scheme, and categorizes sensitive values like session tokens, user identifiers, and JWTs.
-
-Originally inspired by limitations in *ChromeCookieView* by NirSoft (which no longer supports newer Chrome versions), this tool operates **completely offline**, requiring only local files and no browser interaction.
+It was built for forensic investigations, red teaming, and advanced offline analysis of Chrome user profiles.
 
 ---
 
 ## 🔍 Features
 
-- ✅ Extracts the AES encryption key from Chrome's `Local State` file
-- 🔓 Decrypts cookies stored in Chrome’s `Cookies` SQLite DB
-- 🧩 Identifies sensitive values:  
-  - Session tokens  
-  - Authentication cookies  
-  - JWTs  
-  - User identifiers  
+- 🔓 Decrypts AES-GCM encrypted Chrome cookies (v10 and v11)
+- 📂 Works completely **offline** using:
+  - Chrome Master Key (`--master-key`)
+  - DPAPI Master Key (`--dpapi-master-key`)
+  - DPAPI GUID + Password SHA1 (`--dpapi-guid + --password-sha1`)
+  - Automatic extraction (if running locally)
+- 📦 Categorizes cookies:
+  - Session tokens
+  - Authentication tokens
+  - JWTs
+  - Identifiers
   - Consent flags
-- 🔎 Search cookie categories
-- 📁 Works offline (from a memory dump or Chrome profile backup)
-- 🚨 Avoids security detection or browser alerts
-- 📊 Displays clean, categorized output with emoji stats
+- 🧩 Allows JSON unwrapping and smart formatting
+- 🗃️ Shows statistics per cookie category
+- 👁️ Interactive mode for exploring decrypted cookies by type
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Usage
 
-1. **Ensure Chrome is closed.**
-2. **Run the script:**
+### Minimal
 
 ```bash
-python chrome_decryptor.py
+python chrome_decryptor_final.py --master-key YOUR_CHROME_MASTER_KEY_HEX
 ```
 
-The script will:
-- Check if the necessary files exist
-- Extract the AES encryption key
-- Decrypt all cookies and print them in categorized format
+> You can extract the master key from the Chrome Local State file manually or derive it using DPAPI methods.
 
-> 🔐 You’ll be warned before sensitive data is shown — press Enter to proceed.
+### Full Options
+
+```bash
+python chrome_decryptor_final.py 
+    [--master-key HEX] 
+    [--dpapi-master-key HEX] 
+    [--dpapi-guid GUID --password-sha1 HASH] 
+    [--local-state PATH] 
+    [--cookies PATH]
+```
+
+- `--master-key`: Direct 32-byte hex master key
+- `--dpapi-master-key`: Windows DPAPI master key (used to decrypt Chrome’s key)
+- `--dpapi-guid + --password-sha1`: Derive key with known credentials
+- `--local-state`: Path to the Local State JSON (default is system path)
+- `--cookies`: Path to `Cookies` SQLite DB (default is system path)
 
 ---
 
 ## 📦 Example Output
 
 ```
-🌐 .example.com | session_id = abc123def456...
-🌐 auth.site.net | access_token = (JSON)
+=> www.site.com | session_id = abc123xyz...
+=> auth.example.com | jwt_token = (JSON)
 {
   "value": "eyJhbGciOiJIUzI1NiIsInR..."
 }
@@ -55,85 +67,45 @@ The script will:
 
 ---
 
-## 📂 File Requirements
+## 📂 Requirements
 
-The script looks for the following files under the default Chrome profile path:
-
-- `Local State` (for the AES key)
-- `Cookies` (SQLite database of encrypted cookie values)
-
-These are typically located under:
-
-```
-C:\Users\<YourUsername>\AppData\Local\Google\Chrome\User Data\...
-```
+- Windows system
+- Python 3.8+
+- Encrypted `Cookies` SQLite file
+- `Local State` file (if deriving key)
+- One of the following:
+  - Chrome Master Key
+  - DPAPI Master Key
+  - DPAPI GUID + Password Hash
 
 ---
 
 ## ⚙️ Dependencies
 
-Below is your **`requirements.txt`** file — based on the actual imports in your code:
+Save this as `requirements.txt`:
 
 ```txt
 pycryptodome
 pywin32
+dpapick3
 ```
 
-To install them:
+Install via:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-> ℹ️ `sqlite3`, `json`, `os`, `base64`, and `re` are part of Python’s standard library.
-
 ---
-
-## 🔨 Latest Working Chrome Version
-
-< 129.0.666.8.59 (Official Build) (64-bit)
 
 ## ⚠️ Disclaimer
 
-This tool is intended **strictly for ethical, educational, or forensic use only**.  
-Using it on systems you do not own or without consent may violate laws and ethical guidelines.
-
-**Use responsibly.**
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
+This tool is intended **strictly for ethical, educational, or forensic purposes** only.  
+Do not use this software on systems you do not own or have explicit permission to analyze.
 
 ---
 
 ## 🙋‍♂️ Author
 
 **Theodoros**  
-Junior Penetration Tester - Intern
-
-## 🖼️ Screenshots
-
-### 🔐 Master Key Extraction and Decryption Prompt
-![Start Decryption](screenshots/start_decryption_prompt.png)
-
----
-
-### 📋 Decrypted Cookies Output (Part 1)
-![Decrypted Output 1](screenshots/decrypted_output_1.png)
-
----
-
-### 📋 Decrypted Cookies Output (Part 2)
-![Decrypted Output 2](screenshots/categorized_output.png)
-
----
-
-### 📊 Summary Statistics by Category
-![Summary Stats](screenshots/summary_stats.png)
-
----
-
-### 🔍 Viewing Cookies by Category (e.g., SESSION, TOKEN, CONSENT)
-![Categorized Output](screenshots/decrypted_output_2.png)
+Junior Penetration Tester | Cybersecurity Intern  
